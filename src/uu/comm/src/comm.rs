@@ -14,6 +14,7 @@ use uucore::display::Quotable;
 use uucore::error::{FromIo, UResult, USimpleError};
 use uucore::format_usage;
 use uucore::fs::paths_refer_to_same_file;
+use uucore::i18n::collator::{init_locale_collation, locale_cmp};
 use uucore::line_ending::LineEnding;
 use uucore::translate;
 
@@ -112,7 +113,7 @@ impl OrderChecker {
             return true;
         }
 
-        let is_ordered = *current_line >= *self.last_line;
+        let is_ordered = locale_cmp(current_line, &self.last_line) != Ordering::Less;
         if !is_ordered && !self.has_error {
             let _ = writeln!(
                 stderr(),
@@ -242,7 +243,7 @@ fn comm(
         let ord = match (na, nb) {
             (0, _) => Ordering::Greater,
             (_, 0) => Ordering::Less,
-            (_, _) => ra.as_slice().cmp(rb.as_slice()),
+            (_, _) => locale_cmp(ra.as_slice(), rb.as_slice()),
         };
 
         match ord {
@@ -339,6 +340,7 @@ fn open_file(name: &OsString, line_ending: LineEnding) -> io::Result<LineReader>
 
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
+    init_locale_collation();
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
     let line_ending = LineEnding::from_zero_flag(matches.get_flag(options::ZERO_TERMINATED));
     let filename1 = matches.get_one::<OsString>(options::FILE_1).unwrap();
